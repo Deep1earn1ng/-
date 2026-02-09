@@ -1,0 +1,112 @@
+# -----------------------------------------------------------------------------
+# MSMT17 SOTA 级配置 (4070Ti 12GB 稳定版)
+# -----------------------------------------------------------------------------
+
+MODEL:
+  NAME: 'transformer'
+  PRETRAIN_CHOICE: 'imagenet'
+  # [请确认] 你的权重路径
+  PRETRAIN_PATH: '/media/deeplearn1ng/0EA70AE30EA70AE3/FangYuan/DateSets/Weight/jx_vit_base_p16.pth'
+
+  TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
+  STRIDE_SIZE: [12, 12]
+  DROP_PATH: 0.1
+  DROP_OUT: 0.0
+  ATT_DROP_RATE: 0.0
+
+  # SIE 配置
+  SIE_CAMERA: True
+  SIE_COE: 1.0
+  SIE_VIEW: False
+
+  # JPM 配置
+  JPM: True
+  SHIFT_NUM: 5
+  SHUFFLE_GROUP: 2
+  DEVIDE_LENGTH: 4
+  RE_ARRANGE_STEP: 5
+
+  # Loss 配置
+  METRIC_LOSS_TYPE: 'triplet'
+  IF_LABELSMOOTH: 'on'
+  IF_WITH_CENTER: 'yes'
+  # [保持低权重] 防止 MSMT17 脏标签干扰
+  CENTER_LOSS_WEIGHT: 0.0005
+  NO_MARGIN: True
+  ID_LOSS_TYPE: 'softmax'
+  ID_LOSS_WEIGHT: 1.0
+  TRIPLET_LOSS_WEIGHT: 1.0
+  JPM_LOSS_WEIGHTS: [1.0, 0.5, 0.5, 0.5, 0.5]
+
+  DEVICE: "cuda"
+  DEVICE_ID: '0'
+  DIST_TRAIN: False
+
+INPUT:
+  # [保持高分] 384x128 是提分关键
+  SIZE_TRAIN: [384, 128]
+  SIZE_TEST: [384, 128]
+  PROB: 0.5
+  RE_PROB: 0.5
+  PADDING: 10
+  PIXEL_MEAN: [0.485, 0.456, 0.406]
+  PIXEL_STD: [0.229, 0.224, 0.225]
+
+DATASETS:
+  NAMES: 'msmt17'
+  # [请确认] 数据集路径
+  ROOT_DIR: '/media/deeplearn1ng/0EA70AE30EA70AE3/FangYuan/DateSets/MSMT17'
+
+DATALOADER:
+  SAMPLER: 'softmax_triplet'
+  NUM_INSTANCE: 4
+  # 如果系统卡顿，可以尝试降为 4，通常 8 也没问题
+  NUM_WORKERS: 8
+
+SOLVER:
+  OPTIMIZER_NAME: 'SGD'
+  MOMENTUM: 0.9
+  BASE_LR: 0.008
+  CENTER_LR: 0.5
+
+  # [核心修改 1] 降低训练轮数
+  # SGD 在 180 轮左右即可达到最佳性能，跑 600 轮是浪费时间
+  MAX_EPOCHS: 400
+
+  # [核心修改 2] 降低 Batch Size
+  # 384分辨率 + MSMT17 在 12GB 显存上跑 96 很危险
+  # 改为 64 是最稳妥的方案，速度也不会慢多少
+  IMS_PER_BATCH: 96
+
+  # [核心修改 3] 调整学习率衰减点以匹配 180 Epochs
+  STEPS: [180, 300]
+  GAMMA: 0.1
+
+  WARMUP_FACTOR: 0.01
+  WARMUP_EPOCHS: 10
+  WARMUP_METHOD: 'linear'
+
+  LARGE_FC_LR: False
+  WEIGHT_DECAY: 0.0001
+  WEIGHT_DECAY_BIAS: 0.0001
+  BIAS_LR_FACTOR: 2
+  SEED: 1234
+  MARGIN: 0.3
+
+  CHECKPOINT_PERIOD: 1
+  LOG_PERIOD: 50
+  EVAL_PERIOD: 10
+
+TEST:
+  EVAL: True
+  IMS_PER_BATCH: 64
+  RE_RANKING: True
+  RE_RANKING_K1: 20
+  RE_RANKING_K2: 6
+  FEAT_NORM: 'yes'
+  WEIGHT: ''
+  NECK_FEAT: 'before'
+  AQE: []
+
+# 输出目录
+OUTPUT_DIR: './logs/msmt17/vit_hbf_sgd_stable'

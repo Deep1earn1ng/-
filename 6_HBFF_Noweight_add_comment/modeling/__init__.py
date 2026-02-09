@@ -1,0 +1,1 @@
+from .backbones.vit_hbf import vit_base_patch16_224_TransReID
